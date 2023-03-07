@@ -1,0 +1,2 @@
+[console_scripts]
+pflog = pflog.__main__:main
