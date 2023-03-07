@@ -1,111 +1,102 @@
-plugin2cube
-===========
+pflog
+=====
 
 |Version| |MIT License| |ci|
 
 Abstract
 --------
 
-Small utility app that “registers” a ChRIS plugin to a CUBE instance
-from the CLI. As of January 2023, CUBE no longer needs a companion store
-for plugin registration. It is now possible to register a plugin
-directly to CUBE itself using updates to the CUBE API. This utility
-script leverages this API to allow for direct registration of plugins.
+This software is a lightweight user of the ``pftel-client`` library that
+allows for logging to a remote logging service. Both stand-alone and
+modular use cases are supported. At the moment only minimal coverage of
+server API is provided.
 
 Overview
 --------
 
-``plugin2cube`` is a simple app that allows for the registration of a
-plugin image directly to a CUBE instance without the need of a ChRIS
-Store as intermediary. This allows for simpler, more portable management
-of plugins in a given CUBE.
+``pflog`` is a simple app that is both a stand alone client as well as a
+module for logging to a ``pftel`` telemetry server.
 
-The script does need to determine the plugin JSON representation. There
-are two broad mechanisms for resolving this. The first is to simply read
-this representation from a file. The second is to actually *run* the
-plugin image to determine the representation.
+Installation
+------------
 
-Running the image does require ``docker`` to be present on the host
-executing this script. Two assumptions are made in this case:
+Local python venv
+~~~~~~~~~~~~~~~~~
 
--  The plugin has been created using the ``chris_plugin_template`` in
-   which case the ``chris_plugin_info`` mechanism is used to determine
-   the JSON representation. This is attempted, and if successful, the
-   representation is used.
--  Failing that, the plugin is assumed to be created using the
-   cookiecutter mechanism (or similar) and that the plugin code supports
-   the ``--json`` flag to describe its representation. In this case, the
-   script, if not explicitly told what the actual plugin executable
-   within the image (from –pluginexec) is, will assume that the
-   executable can be found from the docker image name
-   ``<prefix>/<prefix>/.../pl-<pluginexec>``
+For *on the metal* installations, ``pip`` it:
+
+.. code:: bash
+
+   pip install pflog
+
+docker container
+~~~~~~~~~~~~~~~~
+
+.. code:: bash
+
+   docker pull fnndsc/pflog
+
+Runnning
+--------
+
+The simplest way to use ``pflog`` in script mode is
+
+.. code:: bash
+
+   export PFTEL=http://localhost:22223 # obviously change this as needed
+   pflog --pftelURL $PFTEL --verbosity 1 --log "Hello world!"
+
+This writes messages to default ``logObject`` under a ``logCollection``
+that is the timestamp of the event transmission. Within the
+``logCollection`` will be single ``logEvent`` called ``000-event``.
 
 Arguments
 ---------
 
 .. code:: html
 
-           --dock_image <container_name>
-           The name of the plugin container image. This is typically something like
+           --pftelURL <pftelURL>
+           The URL of the pftel instance. Typically:
 
-                                   fnndsc/pl-someAnalysis
-                                          -- or --
-                               localhost/fnndsc/pl-someAnalysis
+                   --pftelURL http://some.location.somewhere:22223
 
            and is a REQUIRED parameter.
 
-           [--nodockerpull]
-           If specified, the app will not try and pull the image, but will assume
-           the image exists in the local repository space. This is useful for
-           container images that are purely local and have not been pushed to any
-           container registry.
+           --log <logMessage>
+           The actual message to log. Use quotes to protect messages that
+           contain spaces:
 
-           [--name <pluginNameInCUBE>]
-           The name of the plugin within CUBE. Typically something like
-           "pl-someAnalysis". If not supplied, name will be inferred from
-           the <container_name>, by stripping and leading prefices and trailing
-           versioning.
+                   --log "Hello, world!"
 
-           [--public_repobase <basename>]
-           The base URL of the plugin code, typically on github. If not specified,
-           is assumed to be
+           [--logObject <logObjectInPTFEL>] "default"
+           [--logCollection <logCollectionInPFTEL>] `timestamp`
+           [--logEvent <logEventInPFTEL>] "event"
+           [--appName <appName>]
+           [--execTime <execTime>]
+           Logs are stored within the pftel database in
 
-                       https://github.com/FNNDSC
+               `{logObjectInPFTEL}`/`{logCollectionInPFTEL}`/`{logEventInPFTEL}`
 
-           [--public_repo <repo_name>]
-           The URL of the plugin code, typically on github. This is accessed to
-           find a README.[rst|md] which is used by the ChRIS UI when providing
-           plugin details. If not supplied, the repo will be assumed to be
+           if not specified, use defaults as shown. The <appName> and <execTime>
+           are stored within the <logEventInPFTEL>.
 
-                       <public_repobase>/<pluginNameInCUBE>
+           [--asyncio]
+           If specified, use asyncio, else do sync calls.
 
-           [--pluginexec <exec>]
-           The name of the actual plugin executable within the image if this
-           executable does not conform to standard conventions.
+           [--detailed]
+           If specified, return detailed responses from the server.
 
-           [--computenames <commalist,of,envs>] ("host")
-           A comma separted list of compute environments within a CUBE to which
-           the plugin can be registered.
+           [--test]
+           If specified, run a small internal test on multi-logger calls.
 
-           [--CUBEurl <CUBEURL>] ("http://localhost:8000/api/v1/")
-           The URL of the CUBE to manage.
-
-           [--CUBEuser <user>] ("chris")
-           The name of the administration CUBE user.
-
-           [--CUBEpasswd <password>] ("chris1234")
-           The admin password.
-
-           [--jsonFile <jsonRepFile>]
-           If provided, read the representation from <jsonRepFile> and do not
-           attempt to run the plugin with docker.
+           [--pftelUser <user>] ("chris")
+           The name of the pftel user. Reserved for future use.
 
            [--inputdir <inputdir>]
-           An optional input directory specifier.
+           An optional input directory specifier. Reserverd for future use.
 
            [--outputdir <outputdir>]
-           An optional output directory specifier. Some files are typically created
-           and executed from the <outputdir>.
+           An optional output directory specifier. Reserved for future use.
 
            [--man]
            If specified, show this help page and quit.
@@ -129,52 +120,6 @@ Arguments
            Debugging is via telnet session. This specifies the port on which the telnet
            session is listening.
 
-Installation
-------------
-
-Easiest vector for installation is
-
-.. code:: bash
-
-   pip install plugin2cube
-
-Examples
---------
-
-``plugin2cube`` accepts several CLI flags/arguments that together
-specify the CUBE instance, the plugin JSON description, as well as
-additional parameters needed for registration. For a full list of
-supported arguments, do
-
-.. code:: shell
-
-   plugin2cube --man
-
-To register a plugin, do
-
-.. code:: shell
-
-   # Simplest way -- json representation is determined by running the container
-   # This requires of course that the machine running this script has docker installed!
-   plugin2cube     --CUBEurl http://localhost:8000/api/v1/                 \
-                   --CUBEuser chris --CUBEpassword chris1234               \
-                   --dock_image local/pl-imageProc                         \
-                   --name pl-imageProc                                     \
-                   --public_repo https://github.com/FNNDSC/pl-imageProc
-
-Note that the above can also be equivalently specified with
-
-.. code:: shell
-
-   # Simplest way -- json representation is determined by running the container
-   # This requires of course that the machine running this script has docker installed!
-   plugin2cube     --CUBEurl http://localhost:8000/api/v1/                 \
-                   --CUBEuser chris --CUBEpassword chris1234               \
-                   --dock_image local/pl-imageProc
-
-where the ``--name`` and ``--public_repo`` are inferred from the
-``--dock_image`` and a default ``--public_repobase``
-
 Development
 -----------
 
@@ -194,9 +139,9 @@ Run unit tests using ``pytest``. Coming soon!
 
 *-30-*
 
-.. |Version| image:: https://img.shields.io/docker/v/fnndsc/pl-plugin2cube?sort=semver
-   :target: https://hub.docker.com/r/fnndsc/pl-plugin2cube
-.. |MIT License| image:: https://img.shields.io/github/license/fnndsc/pl-plugin2cube
-   :target: https://github.com/FNNDSC/pl-plugin2cube/blob/main/LICENSE
-.. |ci| image:: https://github.com/FNNDSC/pl-plugin2cube/actions/workflows/ci.yml/badge.svg
-   :target: https://github.com/FNNDSC/pl-plugin2cube/actions/workflows/ci.yml
+.. |Version| image:: https://img.shields.io/docker/v/fnndsc/pl-pflog?sort=semver
+   :target: https://hub.docker.com/r/fnndsc/pl-pflog
+.. |MIT License| image:: https://img.shields.io/github/license/fnndsc/pl-pflog
+   :target: https://github.com/FNNDSC/pl-pflog/blob/main/LICENSE
+.. |ci| image:: https://github.com/FNNDSC/pl-pflog/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/FNNDSC/pl-pflog/actions/workflows/ci.yml
