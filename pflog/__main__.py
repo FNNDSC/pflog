@@ -211,7 +211,7 @@ def earlyExit_check(args) -> int:
     if int(args.verbosity) > 1: print(DISPLAY_TITLE)
     return 0
 
-def test_multi(logger:pflog.Pflog) -> None:
+def test_multi(options:Namespace, logger:pflog.Pflog) -> None:
     # If you wanted to reuse this logger with a new message, simply just
     # call it again with the message in the arglist -- be aware of the
     # implications this has in the pftel database -- the location of
@@ -219,6 +219,18 @@ def test_multi(logger:pflog.Pflog) -> None:
     # <logObject>/<logCollection>/<logEvent>
     logger("Here is another message")
     logger("And another!")
+
+    # Here we create another logger without the CLI parser, but a JSON
+    # object.
+    tlog:pflog.Pflog        = pflog.Pflog( {
+            'log'           : 'Hello from tlog!',
+            'pftelURL'      : options.pftelURL,
+            'logObject'     : 'test-feed',
+            'logCollection' : 'run1',
+            'verbosity'     : options.verbosity
+        }
+    )
+    d_tlog:dict             = tlog.run()
 
 def main(argv=None) -> int:
     """
@@ -239,7 +251,7 @@ def main(argv=None) -> int:
     logger:pflog.Pflog      = pflog.Pflog(options)
     d_pflog:dict            = logger.run()
 
-    if options.test: test_multi(logger)
+    if options.test: test_multi(options, logger)
 
     return 0 if d_pflog['status'] else 2
 
