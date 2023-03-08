@@ -196,6 +196,7 @@ def earlyExit_check(args) -> int:
     If version or synospis are requested, print these and return
     code for early exit.
     """
+    str_help:str = ''
     if args.man or args.synopsis:
         print(str_desc)
         if args.man:

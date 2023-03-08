@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.0.2'
+__version__ = '1.0.6'
 
 from    pathlib                 import Path
 
@@ -223,9 +223,9 @@ class Pflog:
         Possible TODO? How to check _elegantly_ on dead server?
         """
         global Env
-
         self.env:data.env               = data.env()
         self.options:Namespace          = options
+        self.env.options                = options
         self.envOK:bool                 = True
         if not self.env_setup(options):
             self.env.ERROR("Env setup failure, exiting...")
