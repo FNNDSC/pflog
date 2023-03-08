@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.0.6'
+__version__ = '1.0.8'
 
 from    pathlib                 import Path
 
@@ -265,7 +265,6 @@ class Pflog:
             log_structured.LogStructured: a structured log object
         """
         timenow         = lambda: datetime.now(timezone.utc).astimezone().isoformat()
-
         d_post:log_structured   = log_structured.LogStructured()
         d_post.log_object       = self.options.logObject
         d_post.log_collection   = timenow() if not len(self.options.logCollection) \
@@ -274,6 +273,7 @@ class Pflog:
         d_post.app_name         = self.options.appName
         d_post.exec_time        = float(self.options.execTime)
         d_post.payload          = self.options.log
+
         return d_post
 
     def log_do(self) -> log_response:
@@ -297,17 +297,14 @@ class Pflog:
             dict: results from the registration
         """
         b_status:bool       = False
-        if not self.envOK:
-            return {'status': b_status}
-        # pudb.set_trace()
+        if not self.envOK:  return {'status': b_status}
+
         reply:log_response  = self.log_do()
         if reply: b_status  = True
 
         if int(self.options.verbosity):
-            if reply:
-                print(reply.message)
-            else:
-                print("No reply received!")
+            if reply:   print(reply.message)
+            else:       print("No reply received!")
 
         return {
             'status'    : b_status,
