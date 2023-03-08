@@ -1,8 +1,8 @@
 # pflog
 
-[![Version](https://img.shields.io/docker/v/fnndsc/pl-pflog?sort=semver)](https://hub.docker.com/r/fnndsc/pl-pflog)
-[![MIT License](https://img.shields.io/github/license/fnndsc/pl-pflog)](https://github.com/FNNDSC/pl-pflog/blob/main/LICENSE)
-[![ci](https://github.com/FNNDSC/pl-pflog/actions/workflows/ci.yml/badge.svg)](https://github.com/FNNDSC/pl-pflog/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/docker/v/fnndsc/pflog?sort=semver)](https://hub.docker.com/r/fnndsc/pflog)
+[![MIT License](https://img.shields.io/github/license/fnndsc/pflog)](https://github.com/FNNDSC/pflog/blob/main/LICENSE)
+[![ci](https://github.com/FNNDSC/pflog/actions/workflows/ci.yml/badge.svg)](https://github.com/FNNDSC/pflog/actions/workflows/build.yml)
 
 ## Abstract
 
@@ -31,11 +31,38 @@ docker pull fnndsc/pflog
 
 ## Runnning
 
-The simplest way to use `pflog` in script mode is
+### Script mode
+
+To use `pflog` in script mode you simply call the script with appropriate arguments (and of course this assumes you have a server isntance at the `$PFTEL` location)
 
 ```bash
 export PFTEL=http://localhost:22223 # obviously change this as needed
-pflog --pftelURL $PFTEL --verbosity 1 --log "Hello world!"
+
+pflog                                           \
+        --log              "Hello, world!"      \
+        --pftelURL         $PFTEL               \
+        --verbosity        1                    \
+```
+
+### Module mode
+
+To use `pflog` in python module mode, you declare an object and instantiate with a dictionary of values. The dictionary keys are _identical_ to the script CLI keys:
+
+```python
+from pflog                  import pflog
+
+log:pflog.Pflog        = pflog.Pflog( {
+        'log'           : 'Hello, world!',
+        'pftelURL'      : 'http://localhost:22223',
+        'verbosity'     : '1'
+    }
+)
+d_tlog:dict             = log.run()
+
+# You can use this same object to log more messages:
+log('This is another message')
+log('and so is this!')
+
 ```
 
 This writes messages to default `logObject` under a `logCollection` that is the timestamp of the event transmission. Within the `logCollection` will be single `logEvent` called `000-event`.
