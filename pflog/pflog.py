@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.0.8'
+__version__ = '1.0.10'
 
 from    pathlib                 import Path
 
@@ -224,9 +224,17 @@ class Pflog:
         """
         global Env
         self.env:data.env               = data.env()
-        self.options:Namespace          = options
-        self.env.options                = options
-        self.envOK:bool                 = True
+
+        # If the <options> is a dictionary, then we interpret this as if
+        # it were the CLI (instead of the real CLI) and convert to a
+        # namespace
+        if type(options) is dict:
+            parser:ArgumentParser           = parser_setup('Setup client using dict')
+            options:Namespace               = parser_JSONinterpret(parser, options)
+        if type(options) is Namespace:
+            self.options:Namespace          = options
+            self.env.options                = options
+            self.envOK:bool                 = True
         if not self.env_setup(options):
             self.env.ERROR("Env setup failure, exiting...")
             self.envOK                  = False
