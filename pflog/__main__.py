@@ -48,6 +48,7 @@ str_desc: str                =  DISPLAY_TITLE + """
 package_CLIself         = """
         --pftelURL <pftelURL>                                                   \\
         --log <logMessage>                                                      \\
+        [--pftelDB <URLDBpath>]                                                 \\
         [--asyncio]                                                             \\
         [--detailed]                                                            \\
         [--test]                                                                \\
@@ -94,6 +95,24 @@ package_CLIsynpsisArgs = """
 
         if not specified, use defaults as shown. The <appName> and <execTime>
         are stored within the <logEventInPFTEL>.
+
+        [--pftelDB <DBURLpath>]
+        This is an alternate CLI that specifies a DB POST URL:
+
+            --pftelDB   <URLpath>/<logObject>/<logCollection>/<logEvent>
+
+        for example
+
+            --pftelDB http://localhost:22223/api/v1/weather/massachusetts/boston
+
+        Indirect parsing of each of the object, collection, event strings is
+        available through `pftag` so any embedded pftag SGML is supported. So
+
+            http://localhost:22223/api/vi/%platform/%timestamp_strmsk|**********_/%name
+
+        would be parsed to, for example:
+
+            http://localhost:22223/api/vi/Linux/2023-03-11/posix
 
         [--asyncio]
         If specified, use asyncio, else do sync calls.
