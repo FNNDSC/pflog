@@ -90,6 +90,11 @@ def parser_setup(str_desc) -> ArgumentParser:
                 help    = 'URL (including port if needed) for the pftel server'
     )
     parser.add_argument(
+                '--pftelDB',
+                default = '',
+                help    = 'DB path for log POST in the pftel server'
+    )
+    parser.add_argument(
                 '--log',
                 default = '',
                 help    = 'the (telemetry) message to log'
@@ -322,3 +327,74 @@ class Pflog:
     def __call__(self, message:str, *args: Any, **kwds: Any) -> Any:
         self.options.log = message
         return self.run()
+
+def pfprint(pftelspec:str, message:str, **kwargs) -> str:
+    """
+    A simple "standalone" function for "printing" to
+    a pftel server, analogous to the old C-style printf
+    type functions.
+
+    This function will create a `pflog` object and use this
+    to transmit the <message> with optional kwargs
+    elements.
+
+    Args:
+        pftelspec (str): A pftelFQS string denoting
+        message (str): a message to POST
+
+    kwargs:
+        appName     = <appName>
+        execTime    = <execTime>
+
+    Returns:
+        str: the return from the pftel server
+    """
+    appName:str         = 'pfprint'
+    execTime:str        = '-1'
+    d_log:dict          = {}
+    protocol:str        = ""
+    skip:str            = ""
+    hostport:str        = ""
+    api:str             = ""
+    version:str         = ""
+    logObject:str       = ""
+    logCollection:str   = ""
+    logEvent:str        = ""
+    d_log               = {
+        "status":       False,
+        "reply":        None
+    }
+
+    for k,v in kwargs.items():
+        if k == 'appName':  appName     = v
+        if k == 'execTime': execTime    = v
+    try:
+        protocol,       \
+        skip,           \
+        hostport,       \
+        api,            \
+        version,        \
+        logObject,      \
+        logCollection,  \
+        logEvent = pftelspec.split('/')
+        try:
+            tlog:Pflog        = Pflog( {
+                'log'           : message,
+                'pftelURL'      : protocol + '//' + hostport,
+                'logObject'     : logObject,
+                'logCollection' : logCollection,
+                'logEvent'      : logEvent,
+                'appName'       : appName,
+                'execTime'      : execTime,
+                'verbosity'     : '1'
+            })
+            try:
+                d_log:dict = tlog.run()
+            except Exception as e:
+                print('%s' % e)
+                print("ERROR - could not POST to remote server!")
+        except:
+            print("ERROR - could not connect to remote server!")
+    except:
+        print("ERROR -- the pftel DB URL spec seems invalid!")
+    return d_log
