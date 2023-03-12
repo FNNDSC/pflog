@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.0.12'
+__version__ = '1.0.14'
 
 from    pathlib                 import Path
 
@@ -22,7 +22,7 @@ from    pftel_client.types      import Response
 
 from    argparse                import  Namespace, ArgumentParser
 from    argparse                import  RawTextHelpFormatter
-
+from    pftag                   import  pftag
 from    .                       import  data
 
 def parser_setup(str_desc) -> ArgumentParser:
@@ -362,13 +362,18 @@ def pfprint(pftelspec:str, message:str, **kwargs) -> str:
     logEvent:str        = ""
     d_log               = {
         "status":       False,
-        "reply":        None
+        "reply":        None,
+        "URLspec":      pftelspec
     }
 
     for k,v in kwargs.items():
         if k == 'appName':  appName     = v
         if k == 'execTime': execTime    = v
     try:
+        tagger:pftag.Pftag  = pftag.Pftag({})
+        d_tag:dict          = tagger(pftelspec)
+        pftelsub:str        = d_tag['result']
+        d_log['URLspec']    = d_tag['result']
         protocol,       \
         skip,           \
         hostport,       \
@@ -376,7 +381,7 @@ def pfprint(pftelspec:str, message:str, **kwargs) -> str:
         version,        \
         logObject,      \
         logCollection,  \
-        logEvent = pftelspec.split('/')
+        logEvent = pftelsub.split('/')
         try:
             tlog:Pflog        = Pflog( {
                 'log'           : message,
@@ -389,7 +394,7 @@ def pfprint(pftelspec:str, message:str, **kwargs) -> str:
                 'verbosity'     : '1'
             })
             try:
-                d_log:dict = tlog.run()
+                d_log:dict          = tlog.run()
             except Exception as e:
                 print('%s' % e)
                 print("ERROR - could not POST to remote server!")
