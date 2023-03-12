@@ -64,7 +64,7 @@ instantiate with a dictionary of values. The dictionary keys are
 
 .. code:: python
 
-   from pflog                  import pflog
+   from pflog               import pflog
 
    log:pflog.Pflog        = pflog.Pflog( {
            'log'           : 'Hello, world!',
@@ -80,7 +80,8 @@ instantiate with a dictionary of values. The dictionary keys are
 
 This writes messages to default ``logObject`` under a ``logCollection``
 that is the timestamp of the event transmission. Within the
-``logCollection`` will be single ``logEvent`` called ``000-event``.
+``logCollection`` will be ``logEvent``\ s prefixed by an incremental
+counter, so ``000-event``, ``001-event``, etc.
 
 Arguments
 ---------

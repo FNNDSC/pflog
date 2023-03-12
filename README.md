@@ -49,7 +49,7 @@ pflog                                           \
 To use `pflog` in python module mode, you declare an object and instantiate with a dictionary of values. The dictionary keys are _identical_ to the script CLI keys:
 
 ```python
-from pflog                  import pflog
+from pflog               import pflog
 
 log:pflog.Pflog        = pflog.Pflog( {
         'log'           : 'Hello, world!',
@@ -65,7 +65,7 @@ log('and so is this!')
 
 ```
 
-This writes messages to default `logObject` under a `logCollection` that is the timestamp of the event transmission. Within the `logCollection` will be single `logEvent` called `000-event`.
+This writes messages to default `logObject` under a `logCollection` that is the timestamp of the event transmission. Within the `logCollection` will be `logEvent`s  prefixed by an incremental counter, so `000-event`, `001-event`, etc.
 
 ## Arguments
 
