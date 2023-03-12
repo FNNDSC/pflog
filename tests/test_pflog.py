@@ -1,15 +1,17 @@
 
-from pathlib    import Path
+from    pathlib    import Path
 
-from pflog      import pflog
+from    pflog      import pflog
+import  socket
 
 import  pudb
 
 def test_pfprint() -> None:
-    # Extremely hardcoded test URL!
-    testURL:str = "http://192.168.1.200:22223/api/v1/new/collection/event"
+    collection:str  = '%timestamp_chrplc|:|-_'
+    IP:str          = socket.gethostbyname(socket.gethostbyname())
+    pftelURL:str    = f"http://{IP}:22223/api/v1/new/{collection}/event"
 
-    d_log:dict = pflog.pfprint(testURL, "hello, world!" , appName = "testApp", execTime = 2.0)
+    d_log:dict = pflog.pfprint(pftelURL, "hello, world!" , appName = "testApp", execTime = 2.0)
     assert d_log['status'] is True
 
 # def test_main(mocker, tmp_path: Path):
