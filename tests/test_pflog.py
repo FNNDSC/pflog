@@ -8,28 +8,20 @@ import  pudb
 
 def test_pfprint() -> None:
     collection:str  = '%timestamp_chrplc|:|-_'
-    IP:str          = socket.gethostbyname(socket.gethostbyname())
+    IP:str          = socket.gethostbyname(socket.gethostname())
     pftelURL:str    = f"http://{IP}:22223/api/v1/new/{collection}/event"
 
     d_log:dict = pflog.pfprint(pftelURL, "hello, world!" , appName = "testApp", execTime = 2.0)
     assert d_log['status'] is True
 
-# def test_main(mocker, tmp_path: Path):
-#     """
-#     Simulated test run of the app.
-#     """
-#     inputdir = tmp_path / 'incoming'
-#     outputdir = tmp_path / 'outgoing'
-#     inputdir.mkdir()
-#     outputdir.mkdir()
+def test_pfprint_invalidURLspec() -> None:
+    # This spec is missing the /api/v1/ !
+    pftelURL:str    = r'http://somehost.somewhere.com/logObject/logCollection/logEvent'
+    d_log:dict = pflog.pfprint(pftelURL, "hello, world!" , appName = "testApp", execTime = 2.0)
+    assert d_log['status'] is False
 
-#     options = parser.parse_args(['--name', 'bar'])
-
-#     mock_print = mocker.patch('builtins.print')
-#     main(options, inputdir, outputdir)
-#     mock_print.assert_called_once_with(DISPLAY_TITLE)
-
-#     expected_output_file = outputdir / 'bar.txt'
-#     assert expected_output_file.exists()
-#     assert expected_output_file.read_text() == 'did nothing successfully!'
-
+def test_pfprint_validSpecInvalidURL() -> None:
+    # Here we have a valid spec, but the URL is invalid !
+    pftelURL:str    = r'http://1.2.3.4:22/api/v1/logObject/logCollection/logEvent'
+    d_log:dict = pflog.pfprint(pftelURL, "hello, world!" , appName = "testApp", execTime = 2.0)
+    assert d_log['status'] is False
