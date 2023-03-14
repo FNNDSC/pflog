@@ -176,5 +176,5 @@ Run unit tests using ``pytest``. Coming soon!
    :target: https://hub.docker.com/r/fnndsc/pflog
 .. |MIT License| image:: https://img.shields.io/github/license/fnndsc/pflog
    :target: https://github.com/FNNDSC/pflog/blob/main/LICENSE
-.. |ci| image:: https://github.com/FNNDSC/pflog/actions/workflows/ci.yml/badge.svg
+.. |ci| image:: https://github.com/FNNDSC/pflog/actions/workflows/build.yml/badge.svg
    :target: https://github.com/FNNDSC/pflog/actions/workflows/build.yml

@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/docker/v/fnndsc/pflog?sort=semver)](https://hub.docker.com/r/fnndsc/pflog)
 [![MIT License](https://img.shields.io/github/license/fnndsc/pflog)](https://github.com/FNNDSC/pflog/blob/main/LICENSE)
-[![ci](https://github.com/FNNDSC/pflog/actions/workflows/ci.yml/badge.svg)](https://github.com/FNNDSC/pflog/actions/workflows/build.yml)
+[![ci](https://github.com/FNNDSC/pflog/actions/workflows/build.yml/badge.svg)](https://github.com/FNNDSC/pflog/actions/workflows/build.yml)
 
 ## Abstract
 
