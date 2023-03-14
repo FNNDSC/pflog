@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.0.14'
+__version__ = '1.2.0'
 
 from    pathlib                 import Path
 
@@ -399,7 +399,11 @@ def pfprint(pftelspec:str, message:str, **kwargs) -> str:
                 print('%s' % e)
                 print("ERROR - could not POST to remote server!")
         except:
+            print(f"ERROR: {protocol}://{hostport} ")
             print("ERROR - could not connect to remote server!")
-    except:
+    except Exception as e:
+        print(f'ERROR input        >>{pftelspec}<<')
+        print(f"ERROR in processed >>{pftelsub}<<")
+        print(f"ERROR: {e}")
         print("ERROR -- the pftel DB URL spec seems invalid!")
     return d_log
