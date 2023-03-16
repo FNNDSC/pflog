@@ -3,7 +3,8 @@ from    pathlib    import Path
 
 from    pflog      import pflog
 import  socket
-
+import  os
+os.environ['XDG_CONFIG_HOME'] = '/tmp'
 import  pudb
 
 def test_pfprint() -> None:

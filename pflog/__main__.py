@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import os
+os.environ['XDG_CONFIG_HOME'] = '/tmp'
 import pudb
 
 try:
@@ -17,7 +19,7 @@ from importlib.metadata import Distribution
 __pkg       = Distribution.from_name(__package__)
 __version__ = __pkg.version
 
-import  os, sys, json
+import  sys, json
 import  pudb
 from    pudb.remote             import set_trace
 from    pflog.pflog             import parser_setup, parser_interpret, parser_JSONinterpret
