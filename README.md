@@ -65,7 +65,7 @@ log('and so is this!')
 
 ```
 
-This writes messages to default `logObject` under a `logCollection` that is the timestamp of the event transmission. Within the `logCollection` will be `logEvent`s  prefixed by an incremental counter, so `000-event`, `001-event`, etc.
+This writes messages to a `logObject` called _default_ under a `logCollection` that is the timestamp of the event transmission. Within the `logCollection` will be `logEvent`s  prefixed by an incremental counter, so `000-event`, `001-event`, etc.
 
 ### Decorators and convenience functions
 
