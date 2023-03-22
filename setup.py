@@ -30,7 +30,7 @@ setup(
     author              = 'FNNDSC',
     author_email        = 'rudolph.pienaar@childrens.harvard.edu',
     url                 = 'https://github.com/FNNDSC/pflog',
-    install_requires    = ['pudb', 'loguru', 'pftag', 'pftel-client'],
+    install_requires    = ['pudb', 'loguru', 'pftag', 'pftel-client', 'pytest-mock'],
     packages            = ['pflog'],
     license             = 'MIT',
     entry_points        = {

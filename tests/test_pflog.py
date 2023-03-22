@@ -11,6 +11,7 @@ import  pudb
 def test_pfprint() -> None:
     collection:str  = '%timestamp_chrplc|:|-_'
     IP:str          = socket.gethostbyname(socket.gethostname())
+    # This test will fail if a local `pftel` server has not been started!
     pftelURL:str    = f"http://{IP}:22223/api/v1/new/{collection}/event"
 
     d_log:dict = pflog.pfprint(pftelURL, "hello, world!" , appName = "testApp", execTime = 2.0)
@@ -28,22 +29,28 @@ def test_pfprint_validSpecInvalidURL() -> None:
     d_log:dict = pflog.pfprint(pftelURL, "hello, world!" , appName = "testApp", execTime = 2.0)
     assert d_log['status'] is False
 
-def test_mocpftelTimed() -> None:
+def testmocptelTimedNoArgsDecorator(mocker) -> None:
+
+    mock_print      = mocker.patch('builtins.print')
+    @pflog.tel_logTime
+    def wait(seconds:float) -> None:
+        time.sleep(seconds)
+    wait(2)
+    assert mock_print.call_count is 1
+
+def test_mocpftelTimed(mocker) -> None:
     """
     Send message to the moc listener with a log time
     """
-    pudb.set_trace()
-    pftelURL:str    = r' https://pftel-chris-public.apps.ocp-prod.massopen.cloud/api/v1/timetest/%timestamp/analysis'
+    mock_print      = mocker.patch('builtins.print')
+    pftelURL:str    = r'https://pftel-chris-public.apps.ocp-prod.massopen.cloud/api/v1/timetest/%timestamp/analysis'
+
     @pflog.tel_logTime(
-        someother   = 'something',
         pftelDB     = pftelURL,
-        name        = 'pytest',
-        log         = 'A two second delay logger',
-        isthis      = pftelURL
+        event       = 'pytest',
+        log         = 'A two second delay logger'
     )
-    # @pflog.tel_logTime
-    def wait(seconds:float):
+    def wait(seconds:float) -> None:
         time.sleep(seconds)
     wait(2)
-    assert True     == True
-
+    assert mock_print.call_count is 2

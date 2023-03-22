@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.2.5'
+__version__ = '1.2.6'
 
 from    pathlib                 import Path
 
@@ -331,15 +331,27 @@ class Pflog:
         self.options.log = message
         return self.run()
 
-def tel_logTime(_func: Callable = None, *,
-                someother:str = '',
-                pftelDB:str = '',
-                name:str = '',
-                log:str = '',
-                isthis:str = ''):
+def tel_logTime(_func:Callable  = None, *,
+                pftelDB:str     = '',
+                event:str       = '',
+                log:str         = ''):
+    """A decorator that times (and logs) a method.
+
+    If called without any arguments, this decorator simply prints the time
+    (seconds) that a method took to execute. If called with named args, will
+    transmit the time (and optional log message) as an event to a pftelDB
+    server.
+
+    Args:
+        _func (Callable, optional): the function to wrap. Defaults to None.
+        pftelDB (str, optional): telemetry server address. Defaults to ''.
+        event (str, optional): the name of this event. Defaults to ''.
+        log (str, optional): optional log message. Defaults to ''.
+    """
     def decorator_time(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapped(*args, **kwargs) -> Any:
+            pftelDBlocal:str    = ''
             d_log:dict          = {}
             tagger:pftag.Pftag  = pftag.Pftag({})
             str_event:str       = 'analysisEvent'
@@ -350,17 +362,19 @@ def tel_logTime(_func: Callable = None, *,
             print(f"{func} executed in {ft} second(s).")
             try:
                 if pftelDB:
-                    if name:
-                        str_event   = name
-                    pftelDB         = '/'.join(pftelDB.split('/')[:-1] + [str_event])
+                    if event:
+                        str_event   = event
+                    pftelDBlocal    = pftelDB
+                    pftelDBlocal    = '/'.join(pftelDB.split('/')[:-1] + [str_event])
                     d_log:dict      = pfprint(
-                                        options.pftelDB,
+                                        pftelDBlocal,
                                         log,
                                         appName     = str_event,
                                         execTime    = ft
                                     )
             except:
                 pass
+            return f_ret, d_log
         return wrapped
     if _func is None:
         return decorator_time
@@ -399,6 +413,7 @@ def pfprint(pftelspec:str, message:str, **kwargs) -> str:
     logObject:str       = ""
     logCollection:str   = ""
     logEvent:str        = ""
+    pftelspec           = pftelspec.strip()
     d_log               = {
         "status":       False,
         "reply":        None,
