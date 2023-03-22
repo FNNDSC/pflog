@@ -170,12 +170,12 @@ Arguments
 
 .. code:: html
 
-           --pftelURL <pftelURL>
+           --pftelURL <pftelURL> | --pftelDB <URLDBpath>
            The URL of the pftel instance. Typically:
 
                    --pftelURL http://some.location.somewhere:22223
 
-           and is a REQUIRED parameter.
+           either this or '--pftelDB' MUST be specified. See below for --pftelDB.
 
            --log <logMessage>
            The actual message to log. Use quotes to protect messages that
@@ -194,6 +194,24 @@ Arguments
 
            if not specified, use defaults as shown. The <appName> and <execTime>
            are stored within the <logEventInPFTEL>.
+
+           [--pftelDB <DBURLpath>]
+           This is an alternate CLI that specifies a DB POST URL:
+
+               --pftelDB   <URLpath>/<logObject>/<logCollection>/<logEvent>
+
+           for example
+
+               --pftelDB http://localhost:22223/api/v1/weather/massachusetts/boston
+
+           Indirect parsing of each of the object, collection, event strings is
+           available through `pftag` so any embedded pftag SGML is supported. So
+
+               http://localhost:22223/api/vi/%platform/%timestamp_strmsk|**********_/%name
+
+           would be parsed to, for example:
+
+               http://localhost:22223/api/vi/Linux/2023-03-11/posix
 
            [--asyncio]
            If specified, use asyncio, else do sync calls.
