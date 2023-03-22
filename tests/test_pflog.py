@@ -7,6 +7,8 @@ import  os
 os.environ['XDG_CONFIG_HOME'] = '/tmp'
 import  time
 import  pudb
+from    typing      import Any
+from    argparse    import Namespace
 
 def test_pfprint() -> None:
     collection:str  = '%timestamp_chrplc|:|-_'
@@ -31,7 +33,7 @@ def test_pfprint_validSpecInvalidURL() -> None:
 
 def testmocptelTimedNoArgsDecorator(mocker) -> None:
 
-    mock_print      = mocker.patch('builtins.print')
+    mock_print:Any      = mocker.patch('builtins.print')
     @pflog.tel_logTime
     def wait(seconds:float) -> None:
         time.sleep(seconds)
@@ -42,15 +44,34 @@ def test_mocpftelTimed(mocker) -> None:
     """
     Send message to the moc listener with a log time
     """
-    mock_print      = mocker.patch('builtins.print')
+    mock_print:Any  = mocker.patch('builtins.print')
     pftelURL:str    = r'https://pftel-chris-public.apps.ocp-prod.massopen.cloud/api/v1/timetest/%timestamp/analysis'
 
     @pflog.tel_logTime(
         pftelDB     = pftelURL,
-        event       = 'pytest',
+        event       = 'test_pflog.test_mocpftelTimed',
         log         = 'A two second delay logger'
     )
     def wait(seconds:float) -> None:
         time.sleep(seconds)
     wait(2)
+    assert mock_print.call_count is 2
+
+def test_mocpftelInNamespace(mocker) -> None:
+    """
+    Find pftelDB from the namespace of the called function
+    """
+    mock_print:Any  = mocker.patch('builtins.print')
+    pftelURL:str    = r'https://pftel-chris-public.apps.ocp-prod.massopen.cloud/api/v1/timetest/%timestamp/analysis'
+    options: dict[str, str]         = {
+        'pftelDB'   : pftelURL,
+        'sleep'     : 1
+    }
+    @pflog.tel_logTime(
+        event       = 'test_pflog.test_mocpftelInNamespace',
+        log         = 'test retrieving pftelDB from function namespace arg'
+    )
+    def f(options) -> None:
+        time.sleep(options.sleep)
+    f(Namespace(**options))
     assert mock_print.call_count is 2

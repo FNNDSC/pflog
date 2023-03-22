@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.2.6'
+__version__ = '1.2.8'
 
 from    pathlib                 import Path
 
@@ -342,6 +342,11 @@ def tel_logTime(_func:Callable  = None, *,
     transmit the time (and optional log message) as an event to a pftelDB
     server.
 
+    Sometimes the pftelDB address is within the set of arguments passed to the
+    wrapped function. This decorator attempts to examine the wrapped function args
+    in an attempt to find/extract a namespace that contains an attribute called
+    'pftelDB' unless pftelDB is explicitly passed as a named argument.
+
     Args:
         _func (Callable, optional): the function to wrap. Defaults to None.
         pftelDB (str, optional): telemetry server address. Defaults to ''.
@@ -349,9 +354,25 @@ def tel_logTime(_func:Callable  = None, *,
         log (str, optional): optional log message. Defaults to ''.
     """
     def decorator_time(func: Callable) -> Callable:
+
+        def pftelDB_determine(*args):
+            """Examine the *args for a namespace that contains an attribute
+            'pftelDB'. If found, return that attribute value, else return
+            an empty string.
+
+            Returns:
+                _type_: _description_
+            """
+            pftelDB:str     = ''
+            for arg in args:
+                if type(arg) == Namespace:
+                    if hasattr(arg, 'pftelDB'):
+                        pftelDB = arg.pftelDB
+            return pftelDB
+
         @functools.wraps(func)
         def wrapped(*args, **kwargs) -> Any:
-            pftelDBlocal:str    = ''
+            pftelDBcopy:str     = ''
             d_log:dict          = {}
             tagger:pftag.Pftag  = pftag.Pftag({})
             str_event:str       = 'analysisEvent'
@@ -360,20 +381,19 @@ def tel_logTime(_func:Callable  = None, *,
             dt_end:datetime     = pftag.timestamp_dt(tagger(r'%timestamp')['result'])
             ft:float            = (dt_end - dt_start).total_seconds()
             print(f"{func} executed in {ft} second(s).")
-            try:
-                if pftelDB:
-                    if event:
-                        str_event   = event
-                    pftelDBlocal    = pftelDB
-                    pftelDBlocal    = '/'.join(pftelDB.split('/')[:-1] + [str_event])
-                    d_log:dict      = pfprint(
-                                        pftelDBlocal,
-                                        log,
-                                        appName     = str_event,
-                                        execTime    = ft
-                                    )
-            except:
-                pass
+            pftelDBcopy         = pftelDB
+            if not pftelDBcopy:
+                pftelDBcopy     = pftelDB_determine(*args)
+            if pftelDBcopy:
+                if event:
+                    str_event   = event
+                pftelDBcopy     = '/'.join(pftelDBcopy.split('/')[:-1] + [str_event])
+                d_log:dict      = pfprint(
+                                    pftelDBcopy,
+                                    log,
+                                    appName     = str_event,
+                                    execTime    = ft
+                                )
             return f_ret, d_log
         return wrapped
     if _func is None:
