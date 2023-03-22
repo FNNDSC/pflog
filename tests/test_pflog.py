@@ -75,3 +75,20 @@ def test_mocpftelInNamespace(mocker) -> None:
         time.sleep(options.sleep)
     f(Namespace(**options))
     assert mock_print.call_count is 2
+
+def test_mocNopftelInNamespace(mocker) -> None:
+    """
+    Test if wrapped function's namespace arg does NOT contain a pftelDB attribute
+    """
+    mock_print:Any  = mocker.patch('builtins.print')
+    options: dict[str, str]         = {
+        'sleep'     : 1
+    }
+    @pflog.tel_logTime(
+        event       = 'test_pflog.test_mocpftelInNamespace',
+        log         = 'test retrieving pftelDB from function namespace arg'
+    )
+    def f(options) -> None:
+        time.sleep(options.sleep)
+    f(Namespace(**options))
+    assert mock_print.call_count is 1
