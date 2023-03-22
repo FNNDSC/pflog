@@ -67,6 +67,65 @@ log('and so is this!')
 
 This writes messages to default `logObject` under a `logCollection` that is the timestamp of the event transmission. Within the `logCollection` will be `logEvent`s  prefixed by an incremental counter, so `000-event`, `001-event`, etc.
 
+### Decorators and convenience functions
+
+##### Convenience helper
+
+The python module additionally offers a convience function `pfprint` that offers a function-like _throw back_ to C-style `fprintf` while hiding the complexity of creating and using a `Pflog` object:
+
+```python
+pfprint('https://some.telemetry.server/api/v1/weather/MA/boston', 'Brrr... it is freezing today!')
+```
+
+will log the message `Brr... it is freezing today!` in the event called `boston` of the collection `MA` of the set/object called `weather`. Note that each call of `pfprint` will create effectively a singleton object and a new connection to the telemetry server that is not reused (unlike the snippet above).
+
+##### Timing and logging with decorators
+
+A decorator called `tel_logTime` is also available. In the simplest case
+
+```python
+@tel_logTime
+weather_model(arg1, arg2)
+```
+
+will simply print the total execution time of the function `weather_model`. This information can be additionally logged to a telemetry service using
+
+```python
+@tel_logTime(
+        pftelDB = 'https://some.telemetry.server/ap1/v1/weather/MA/boston-%timestamp',
+        log     = 'Weather prediction execTime'
+)
+weather_model(arg1, arg2)
+```
+
+which will log the execution time of the function to the `pftelDB`. Note that the `%timestamp` in the `event` field `boston-%timestamp` will be parsed at runtime with as a `pftag` string and appropriately substituted. Equivalently one could do
+
+```python
+@tel_logTime(
+        pftelDB = 'https://some.telemetry.server/ap1/v1/weather/MA/event',
+        event   = 'boston-%timestamp'
+        log     = 'Weather prediction execTime'
+)
+weather_model(arg1, arg2)
+```
+
+Finally, note the special case where the function to be decorated contains a python `Namespace` with an attribute called `pftelDB`. In this case, the decorator will determine the `pftelDB` from the decorated function's arguments. This is particularly useful when the main entry point for a python program uses these options and we wish to log telemetry:
+
+```shell
+# Imagine we have a python program called 'weather_app' and it has a CLI option:
+weather_app --pftelDB https://some.telemetry.server/ap1/v1/weather/MA/boston-%timestamp
+```
+
+```python
+# In python, assuming we have parsed the CLI with Argparser into a Namespace variable
+# called 'options', we could simply do
+
+@tel_logTime
+main(options)
+```
+
+And the decorator will determine `pftelDB` from the `options`. For simplicity the `event` and `log` named args have been omitted. Note that the first decorator example was assumed to _not_ have a `Namespace` in either `arg1` nor `arg2`.
+
 ## Arguments
 
 ```html

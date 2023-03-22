@@ -48,9 +48,8 @@ str_desc: str                =  DISPLAY_TITLE + """
 """
 
 package_CLIself         = """
-        --pftelURL <pftelURL>                                                   \\
+        --pftelURL <pftelURL> | --pftelDB <URLDBpath>                           \\
         --log <logMessage>                                                      \\
-        [--pftelDB <URLDBpath>]                                                 \\
         [--asyncio]                                                             \\
         [--detailed]                                                            \\
         [--test]                                                                \\
@@ -73,12 +72,12 @@ package_CLIself         = """
 package_CLIsynpsisArgs = """
     ARGUMENTS
 
-        --pftelURL <pftelURL>
+        --pftelURL <pftelURL> | --pftelDB <URLDBpath>
         The URL of the pftel instance. Typically:
 
                 --pftelURL http://some.location.somewhere:22223
 
-        and is a REQUIRED parameter.
+        either this or '--pftelDB' MUST be specified. See below for --pftelDB.
 
         --log <logMessage>
         The actual message to log. Use quotes to protect messages that
@@ -271,8 +270,6 @@ def main(argv=None) -> int:
 
     logger:pflog.Pflog      = pflog.Pflog(options)
     d_pflog:dict            = logger.run()
-
-    if options.test: test_multi(options, logger)
 
     return 0 if d_pflog['status'] else 2
 

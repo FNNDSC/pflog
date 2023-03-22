@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.2.10'
+__version__ = '1.2.12'
 
 from    pathlib                 import Path
 
@@ -216,8 +216,14 @@ class Pflog:
                     port        = options.debugPort,
                     host        = options.debugHost
         )
+        pudb.set_trace()
         if not len(options.log):
             self.env.ERROR("The '--log <message>' CLI MUST be specified!")
+            status              = False
+        if not len(options.pftelURL) or not len(options.pftelDB):
+            self.env.ERROR("I don't know what telemetry logger to use!")
+            self.env.ERROR("Specify either --pftelURL and appropriate --log[Object|Collection|Event]")
+            self.env.ERROR("or use a --pftelDB <URL>/<obj>/<collection>/<event> string")
             status              = False
         return status
 
@@ -455,9 +461,9 @@ def pfprint(pftelspec:str, message:str, **kwargs) -> str:
         version,        \
         logObject,      \
         logCollection,  \
-        logEvent = pftelsub.split('/')
+        logEvent            = pftelsub.split('/')
         try:
-            tlog:Pflog        = Pflog( {
+            tlog:Pflog      = Pflog( {
                 'log'           : message,
                 'pftelURL'      : protocol + '//' + hostport,
                 'logObject'     : logObject,
