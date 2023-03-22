@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.2.4'
+__version__ = '1.2.5'
 
 from    pathlib                 import Path
 
@@ -14,7 +14,7 @@ from    threading               import current_thread
 from    datetime                import datetime, timezone
 from    argparse                import Namespace
 
-from    typing                  import Any
+from    typing                  import Any, Callable
 
 from    pftel_client            import Client
 from    pftel_client.models     import log_structured, log_response
@@ -25,6 +25,8 @@ from    argparse                import  Namespace, ArgumentParser
 from    argparse                import  RawTextHelpFormatter
 from    pftag                   import  pftag
 from    .                       import  data
+
+import  functools
 
 def parser_setup(str_desc) -> ArgumentParser:
     parser:ArgumentParser = ArgumentParser(
@@ -329,6 +331,42 @@ class Pflog:
         self.options.log = message
         return self.run()
 
+def tel_logTime(_func: Callable = None, *,
+                someother:str = '',
+                pftelDB:str = '',
+                name:str = '',
+                log:str = '',
+                isthis:str = ''):
+    def decorator_time(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs) -> Any:
+            d_log:dict          = {}
+            tagger:pftag.Pftag  = pftag.Pftag({})
+            str_event:str       = 'analysisEvent'
+            dt_start:datetime   = pftag.timestamp_dt(tagger(r'%timestamp')['result'])
+            f_ret:Any           = func(*args, **kwargs)
+            dt_end:datetime     = pftag.timestamp_dt(tagger(r'%timestamp')['result'])
+            ft:float            = (dt_end - dt_start).total_seconds()
+            print(f"{func} executed in {ft} second(s).")
+            try:
+                if pftelDB:
+                    if name:
+                        str_event   = name
+                    pftelDB         = '/'.join(pftelDB.split('/')[:-1] + [str_event])
+                    d_log:dict      = pfprint(
+                                        options.pftelDB,
+                                        log,
+                                        appName     = str_event,
+                                        execTime    = ft
+                                    )
+            except:
+                pass
+        return wrapped
+    if _func is None:
+        return decorator_time
+    else:
+        return decorator_time(_func)
+
 def pfprint(pftelspec:str, message:str, **kwargs) -> str:
     """
     A simple "standalone" function for "printing" to
@@ -340,7 +378,7 @@ def pfprint(pftelspec:str, message:str, **kwargs) -> str:
     elements.
 
     Args:
-        pftelspec (str): A pftelFQS string denoting
+        pftelspec (str): A pftelDB string denoting the pftel URL
         message (str): a message to POST
 
     kwargs:
