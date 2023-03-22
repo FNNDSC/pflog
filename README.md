@@ -33,7 +33,7 @@ docker pull fnndsc/pflog
 
 ### Script mode
 
-To use `pflog` in script mode you simply call the script with appropriate arguments (and of course this assumes you have a server isntance at the `$PFTEL` location)
+To use `pflog` in script mode you simply call the script with appropriate arguments (and of course this assumes you have a server instance at the `$PFTEL` location)
 
 ```bash
 export PFTEL=http://localhost:22223 # obviously change this as needed

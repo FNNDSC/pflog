@@ -44,7 +44,7 @@ Script mode
 
 To use ``pflog`` in script mode you simply call the script with
 appropriate arguments (and of course this assumes you have a server
-isntance at the ``$PFTEL`` location)
+instance at the ``$PFTEL`` location)
 
 .. code:: bash
 
