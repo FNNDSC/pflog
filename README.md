@@ -98,7 +98,7 @@ will simply print the total execution time of the function `weather_model`. This
 weather_model(arg1, arg2)
 ```
 
-which will log the execution time of the function to the `pftelDB`. Note that the `%timestamp` in the `event` field `boston-%timestamp` will be parsed at runtime with as a `pftag` string and appropriately substituted. Equivalently one could do
+which will record the execution time of the function to the `pftelDB`. Note that the `%timestamp` in the `event` field `boston-%timestamp` will be parsed at runtime with as a `pftag` string and appropriately substituted. The `log = 'Weather prediction execTime'` is simply an optional logging string that is also written to the log event. Equivalently one could do
 
 ```python
 @tel_logTime(

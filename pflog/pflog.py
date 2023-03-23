@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.2.22'
+__version__ = '1.2.24'
 
 from    pathlib                 import Path
 
@@ -388,7 +388,7 @@ def tel_logTime(_func:Callable  = None, *,
             print(f"{func} executed in {ft} second(s).")
             pftelDBcopy         = pftelDB
             if not pftelDBcopy:
-                pftelDBcopy     = pftelDB_determine(*args)
+                pftelDBcopy     = tagger(pftelDB_determine(*args))['result']
             if pftelDBcopy:
                 if event:
                     str_event   = event
