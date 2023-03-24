@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = '1.2.24'
+__version__ = '1.2.26'
 
 from    pathlib                 import Path
 
@@ -399,7 +399,7 @@ def tel_logTime(_func:Callable  = None, *,
                                     appName     = str_event,
                                     execTime    = ft
                                 )
-            return f_ret, d_log
+            return f_ret
         return wrapped
     if _func is None:
         return decorator_time
