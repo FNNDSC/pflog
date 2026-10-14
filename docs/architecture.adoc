@@ -1,0 +1,44 @@
+= pflog: architecture
+:toc:
+
+== Abstract
+
+pflog is four packages under one name: `models` holds the span and re-exports hostlib's records; `span` opens and closes a span around a call; `report` says where a closed span goes; `cli` is the `pflog` command. Dependencies run one way, from `cli` to `span` to `report` to `models` to hostlib, and the public surface is what the top-level package re-exports. The load-bearing decisions are three: the outcome of a call is read as a shell reads a program's exit; the span is written on every path out of the call, including the exception; and the default destination is the process's standard error, as one line of JSON.
+
+== Layout and the direction of dependency
+
+`pflog.models.span` defines `Span`, a dataclass with `toDict`, `toJson` and `fromDict`, and nothing else. `pflog.models` re-exports it with hostlib's `HostFacts`, `JobResult`, `JobSpec`, `JobStarted` and `JobLogs`, so a program that imports from `pflog.models` has every record the two libraries produce and reaches past pflog for nothing. This is the rule the pf* stack follows at every layer, that a package re-exports the models of the package it is built on.
+
+`pflog.report` depends on `models`. `pflog.span` depends on `report`, since a span must be reported when it closes, and on hostlib's `facts` for the host and the timestamp. `pflog.cli` depends on all three. Nothing depends on `cli`, and `models` depends only on hostlib. The top-level package re-exports `timed`, `span_open`, `SpanBuilder`, `Span`, the five reporters, the `SpanReporter` protocol and hostlib's records.
+
+== The span and what it shares
+
+`Span` carries `name`, `status`, `returncode`, `errors`, `host`, `startedAt`, `endedAt` and `duration`. The last six have the names and types of the same fields on hostlib's `JobResult`, and a test pins that: every field the two dataclasses share must have the same declared type. There is no common base class. Six shared fields across two packages do not justify a dataclass hierarchy, and dataclass inheritance with defaults is fragile; the convention is by name, checked by the test. The shared shape is what lets `pflog read` print spans and jobs in one table and lets a collector query both with one set of field names.
+
+`startedAt` and `endedAt` come from hostlib's `timestamp_now`, ISO 8601 to the second with the local offset, the same function hostlib uses for a job. `duration` comes from `time.perf_counter`, a monotonic clock, rounded to microseconds, so a clock adjustment during a long run does not produce a negative or inflated number. `host` is hostlib's `facts()`, taken when the span closes.
+
+== Reading the outcome
+
+`SpanBuilder` is the span while its call is running. It is created with the name, takes the wall-clock and monotonic start times, and holds an `errors` list, a `returncode` and a `status` that are `None` until known. Three methods fill them. `outcome_fromValue` reads the call's return value: a `bool` is the status, an `int` is an exit status with 0 as success, and anything else leaves the outcome alone. `outcome_fromExit` reads a `SystemExit`'s code as a shell would: `None` is 0, an integer is itself, and anything else is 1 with the code recorded as an error. `error_add` notes something that went wrong and marks the span failed. `close` resolves `status` when nothing has set it, success if there are no errors, builds the `Span` and keeps it as `span`.
+
+The rule that a bool or int sets the status is what lets `@timed` sit on a command-line program's `main` and record a usage error as a failure, since `main` returns 2 or `argparse` raises `SystemExit(2)`, without the program knowing about pflog at all. A hand-set `error_add` wins over a successful return: a block that reports an error and returns 0 is a failed span, because the error is the more specific fact.
+
+== Every path out
+
+`span_open` is a context manager with three exits. The block completes, and the span is closed and reported. The block raises `SystemExit`, and the exit code is read, the span closed and reported, and the exception re-raised. The block raises anything else, including `KeyboardInterrupt`, and the type and message are recorded as the error, the span closed and reported as failed, and the exception re-raised. The report happens before the re-raise, so a program killed by its own exception still leaves the line that says so. The reporter's own failure is not caught; a reporter that cannot write is a bug to surface, not a condition to hide.
+
+`timed` is `span_open` around a function call, with the return value passed to `outcome_fromValue` before the span closes and then returned unchanged. It is usable bare, when the function's `__name__` is the span's name and the default reporter is used, or with a name and a reporter. `functools.wraps` keeps the function's identity for anything that inspects it, which matters under `@chris_plugin`, whose registry reads the decorated function.
+
+== Reporters
+
+`SpanReporter` is a runtime-checkable protocol with one method, `report(span)`. `JsonReporter` writes `span.toJson(indent=None)` and a newline to a stream and flushes; when constructed with no stream it looks up `sys.stderr` at each report, so a stream redirected after the reporter was made, as test harnesses do, is honoured. `FileReporter` appends the same line to a path, creating the parent directory on first use, and opens and closes the file per span so a crash between spans loses nothing. `LogReporter` formats `name: 4.213 s, ok` or `name: 0.004 s, failed: ValueError: bad input` and logs it at one level on one logger, `pflog` by default. `TeeReporter` forwards to each reporter it was given, in order. `NullReporter` discards.
+
+The module-level `DEFAULT_REPORTER` is a `JsonReporter` on standard error. The choice of stderr over stdout is deliberate: a program's standard output may be data another program consumes, and a line of JSON in it would corrupt that; standard error is where a line about the run belongs and is captured just the same.
+
+== The command
+
+`pflog read` takes files, or standard input when none, parses each line as JSON, and keeps the lines that are a span, recognised by a `name` key, or a hostlib job, recognised by `argv`. Lines that are not JSON or not either kind are skipped without comment, since a log file may hold other things. Each kept line becomes a `Row` of start time, duration, status and label, the span's name or the job's command joined with spaces; `--failed` keeps the rows whose status is false; `--json` prints the kept lines as they were instead of the table, for piping into another tool. `pflog demo` times a sleep through `span_open` with the default reporter and, with `--file`, a `FileReporter` teed in; `--fail` raises inside the block and the command exits 1, so a failed span can be seen without writing code. `--man` and `--synopsis` print the manual through the same renderer hostlib and pftag use, a copy under `cli/manual.py` so the package has no pf* dependency.
+
+== Verification
+
+Thirty-one tests. The models tests pin the JSON line to one line with sorted keys, the round trip through `fromDict`, tolerance of a partial dictionary, and the shared-field rule against `JobResult`. The span tests cover pass-through of the return value, timing above a known sleep, the bare and named decorator forms, integer and boolean outcomes, an exception recorded and re-raised, `SystemExit` with an integer, `None` and a string, `error_add`, a hand-set return code, and the default reporter writing exactly one line to standard error. The reporter tests cover each reporter and the protocol check. The command tests cover the version, the manual without backticks, the help on no command, the demo in both outcomes, the table over a mixed file, the failed and JSON filters, and a missing file exiting 2. Ruff is clean with the stack's rule set and pyright reports nothing.

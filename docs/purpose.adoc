@@ -1,0 +1,32 @@
+= pflog: purpose
+:toc:
+
+== Abstract
+
+pflog times a call and keeps the record. A span around a function or a block captures when the call began, when it ended, how long it took, on which host, and whether it succeeded, and hands that record to a reporter, by default as one line of JSON on the process's standard error. It exists because the one measurement every long-running program wants, how long its main step took and whether it worked, is almost always taken with a subtraction and a `print`, in a form nothing downstream can read, while the platform that does collect the program's output has no way to know what the program meant by a step.
+
+== The problem
+
+A scientific pipeline is a chain of programs, each a container, each doing one step for one subject. The question asked of it afterwards is always the same: which step took the time, and which step failed. The platform that ran the chain can answer in its own terms. It knows when each container was scheduled and when it finished, how much memory it used, and every line it printed. It does not know that the container pulled its image for a minute, copied its input for two, computed for twenty, and copied its output for one, because from outside those are one span. It does not know that the computation was over two hundred files and one of them failed, because the program said so in prose on line 4,812 of its output.
+
+The program knows all of this, and the usual way it says so is a timestamp taken before the main step, another after, and the difference printed. That line is a sentence: a collector cannot index it, a second program cannot parse it, and a chart of a month's runs is a regular expression away. The line says nothing about the outcome, because the subtraction is the same whether the step worked. The line is also wherever the author put it, so two programs in one chain report in two shapes, and the question that needed both has to be answered twice.
+
+The alternative that is usually proposed, a telemetry service the program posts to, moves the problem rather than solving it. The program now opens a connection from inside a compute pod to a server that must be reachable, authenticated, running and backed up, and a failed post must never fail the analysis, so the code around the post grows error handling that is itself a source of failures. The service holds the records in a shape of its own, so the platform's collectors, which already hold everything the program printed, know nothing of them. pflog's first version was such a client, and its history (`docs/history.adoc`) records what that cost.
+
+== What pflog is
+
+pflog is the record, not the transport. A span is a dataclass with eight fields: `name`, `status`, `returncode`, `errors`, `host`, `startedAt`, `endedAt`, `duration`. The last six are the fields hostlib keeps for a process it ran, with the same names and formats, so a span and a job are two kinds of line in one log and one query reads both. The program contributes the name, and that is the only thing it has to know; everything else is observed.
+
+The outcome is read from the call as a shell reads a program. An integer returned, or a `SystemExit` raised, is an exit status, 0 meaning success. A boolean is the status. Anything else returned without an exception is success, and an exception is a failure, recorded with its type and message and then raised on as if the span were not there. A block that survives its own errors can say so through `error_add`, and a span with errors is a failed span whatever its return value. The call's own behaviour is never altered: its return value comes back, its exception propagates, and the span is written in every case, including the failure.
+
+Where the record goes is a reporter, an object with one method, `report(span)`. The default writes one line of JSON to the process's standard error. That choice is the library's whole position on transport: a program's standard error is already captured by every container runtime and read by every log collector, and a line of JSON on it is indexed by its fields without anyone being told the format. A file reporter appends the same line to a file beside a program's results, for the case where the results are what is kept. A logging reporter writes through Python's logging, for a program that already has a log and wants spans in it. The library opens no sockets.
+
+The `pflog` command reads the lines back. Given files of JSON lines, span lines and hostlib job lines alike, it prints one row each, when it started, how long it took, how it ended, and its name or command, or re-emits the lines it kept for another tool. It is the small reader a lab needs on the machine where the files are, before and beside anything larger.
+
+== What pflog is not
+
+It is not a profiler. One span per call, named by the program, is the grain; a trace of every function is a different tool's job. It is not a logger, in the sense of levels and handlers and formatting; it uses Python's logging when asked and has none of its own. It is not a client of any service. A collector that wants spans in a database reads the lines pflog wrote, and that collector can be as simple as a file watcher feeding `pfmongo`, written without touching a single program that emits spans. That separation, the record in the program and the transport outside it, is the test the design is meant to pass.
+
+== Who uses it
+
+A ChRIS plugin wears `@timed` on its `main`, inside the `@chris_plugin` decorator, so the span clocks the body alone and lands on standard error where CUBE keeps the plugin's output. pl-shexec is the first; pl-freesurfer follows. A tool built on pfdo_run gets the per-file job records from hostlib and the per-run span from pflog, and the two are one log. Any script with a main step that someone will one day ask about is a candidate.
