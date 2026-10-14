@@ -1,282 +1,148 @@
 pflog
 =====
 
-|Version| |MIT License| |ci|
+**Time any function or block, and get back a record you can log, parse and query.**
 
-Abstract
---------
+``pflog`` puts a span around a call: when it began, when it ended, how long it took, on which host, and whether it succeeded. The span is a small typed record, written by default as one line of JSON on standard error, so a log collector indexes it without being told the format and ``pflog read`` turns a day of them back into a table.
 
-This software is a lightweight user of the ``pftel-client`` library that
-allows for logging to a remote logging service. Both stand-alone and
-modular use cases are supported. At the moment only minimal coverage of
-server API is provided.
+.. code-block:: python
 
-Overview
---------
+    from pflog import timed
 
-``pflog`` is a simple app that is both a stand alone client as well as a
-module for logging to a ``pftel`` telemetry server.
+    @timed("convert")
+    def convert(inputFile: str, outputFile: str) -> int:
+        ...
+        return 0
 
-Installation
-------------
+    convert("in.dcm", "out.nii.gz")
 
-Local python venv
-~~~~~~~~~~~~~~~~~
+.. code-block:: text
 
-For *on the metal* installations, ``pip`` it:
+    {"duration": 4.213, "endedAt": "2026-10-14T16:02:11-04:00", "errors": [], "host": {...}, "name": "convert", "returncode": 0, "startedAt": "2026-10-14T16:02:07-04:00", "status": true}
 
-.. code:: bash
+The gap
+-------
 
-   pip install pflog
+Every long-running program ends up wanting to know how long its main step took, and the answer is usually a ``print`` of a subtraction between two timestamps. That line is prose: a collector cannot query it, a second program cannot parse it, and it says nothing about whether the step worked. Platform telemetry sees the other side, pods and containers and their resource use, but it cannot know what the program meant by a step, and the volume of what it does know becomes an obstacle to finding the one number that mattered.
 
-docker container
-~~~~~~~~~~~~~~~~
+``pflog`` is the small piece in between: a record shaped by the program, emitted where the platform already looks. The program names the span and nothing else. The record carries the outcome, so a failed call is a failed span, not a number that looks like every other.
 
-.. code:: bash
+The record
+----------
 
-   docker pull fnndsc/pflog
+A span has these fields. The last six are the same fields, in the same formats, as `hostlib <https://github.com/FNNDSC/hostlib>`_ keeps for a process, so a log of spans and a log of jobs read as one.
 
-Runnning
---------
+==================  ======================================================================
+``name``            The span's name; the function's name when none is given.
+``status``          ``True`` when the call returned without error and, if it returned an exit status, that status was 0.
+``returncode``      The integer the call returned, or the code of a ``SystemExit`` it raised; ``None`` otherwise.
+``errors``          Why a failed span failed, in words: ``"ValueError: bad input"``.
+``host``            Hostname, user, pid, platform, working directory.
+``startedAt``       When it started, ISO 8601 with the local offset.
+``endedAt``         When it ended.
+``duration``        Seconds, from a monotonic clock.
+==================  ======================================================================
 
-Script mode
-~~~~~~~~~~~
+The outcome is read from the call the way a shell reads a program. An integer returned, or a ``SystemExit`` raised, is an exit status with 0 meaning success. A boolean is the status itself. Anything else returned without error is success. An exception is a failure, recorded and then raised on as if the span were not there.
 
-To use ``pflog`` in script mode you simply call the script with
-appropriate arguments (and of course this assumes you have a server
-instance at the ``$PFTEL`` location)
+Timing a function
+-----------------
 
-.. code:: bash
+The decorator takes a name and, optionally, a reporter. The function's return value and exceptions pass through untouched.
 
-   export PFTEL=http://localhost:22223 # obviously change this as needed
+.. code-block:: python
 
-   pflog                                           \
-           --log              "Hello, world!"      \
-           --pftelURL         $PFTEL               \
-           --verbosity        1                    \
+    from pflog import timed, FileReporter
 
-Module mode
-~~~~~~~~~~~
+    @timed("recon", report=FileReporter("/out/spans.jsonl"))
+    def recon(subject: str) -> int:
+        ...
 
-To use ``pflog`` in python module mode, you declare an object and
-instantiate with a dictionary of values. The dictionary keys are
-*identical* to the script CLI keys:
+Used bare, ``@timed`` names the span after the function and reports to standard error.
 
-.. code:: python
+A command-line program's ``main`` is the span that matters most. For a ChRIS plugin, the span goes on standard error, where CUBE keeps it with the rest of the plugin's output.
 
-   from pflog               import pflog
+.. code-block:: python
 
-   log:pflog.Pflog        = pflog.Pflog( {
-           'log'           : 'Hello, world!',
-           'pftelURL'      : 'http://localhost:22223',
-           'verbosity'     : '1'
-       }
-   )
-   d_tlog:dict             = log.run()
+    @chris_plugin(...)
+    @timed("shexec")
+    def main(options: Namespace, inputdir: Path, outputdir: Path) -> int:
+        ...
 
-   # You can use this same object to log more messages:
-   log('This is another message')
-   log('and so is this!')
+Timing a block
+--------------
 
-This writes messages to a ``logObject`` called *default* under a
-``logCollection`` that is the timestamp of the event transmission.
-Within the ``logCollection`` will be ``logEvent``\ s prefixed by an
-incremental counter, so ``000-event``, ``001-event``, etc.
+The context manager times a block and gives the open span a handle, for noting an error the block survived or an outcome the block knows better than the library.
 
-Decorators and convenience functions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: python
 
-Convenience helper
-^^^^^^^^^^^^^^^^^^
+    from pflog import span_open
 
-The python module additionally offers a convience function ``pfprint``
-that offers a function-like *throw back* to C-style ``fprintf`` while
-hiding the complexity of creating and using a ``Pflog`` object:
+    with span_open("slices") as span:
+        for slice_ in slices:
+            if not slice_.process():
+                span.error_add(f"{slice_.name} was empty")
 
-.. code:: python
+A span with errors is a failed span, however the block ended.
 
-   pfprint('https://some.telemetry.server/api/v1/weather/MA/boston', 'Brrr... it is freezing today!')
+Where the record goes
+---------------------
 
-will log the message ``Brr... it is freezing today!`` in the event
-called ``boston`` of the collection ``MA`` of the set/object called
-``weather``. Note that each call of ``pfprint`` will create effectively
-a singleton object and a new connection to the telemetry server that is
-not reused (unlike the snippet above).
+A reporter is anything with a ``report(span)`` method. Five come with the library.
 
-Timing and logging with decorators
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+==========================  ==================================================================
+``JsonReporter(stream)``    One line of JSON per span; the process's standard error by default.
+``FileReporter(path)``      One line of JSON per span, appended; the directory is created.
+``LogReporter(logger)``     ``recon: 4.213 s, ok`` through Python's logging, for programs that already log.
+``TeeReporter(a, b)``       Every span to each reporter given.
+``NullReporter()``          Nothing.
+==========================  ==================================================================
 
-A decorator called ``tel_logTime`` is also available. In the simplest
-case
+Standard error is the default on purpose. A program's standard output may be data that another program parses; its standard error is where a line about the run belongs, and it is captured by every container runtime and log collector.
 
-.. code:: python
+Reading it back
+---------------
 
-   @tel_logTime
-   weather_model(arg1, arg2)
+The ``pflog`` command reads files of JSON lines, span lines and hostlib job lines alike, and prints one row each.
 
-will simply print the total execution time of the function
-``weather_model``. This information can be additionally logged to a
-telemetry service using
+.. code-block:: bash
 
-.. code:: python
+    pflog read /out/*/spans.jsonl
+    pflog read --failed /out/*/spans.jsonl
+    pflog read --json --failed /out/*/spans.jsonl | jq .errors
 
-   @tel_logTime(
-           pftelDB = 'https://some.telemetry.server/ap1/v1/weather/MA/boston-%timestamp',
-           log     = 'Weather prediction execTime'
-   )
-   weather_model(arg1, arg2)
+.. code-block:: text
 
-which will record the execution time of the function to the ``pftelDB``.
-Note that the ``%timestamp`` in the ``event`` field
-``boston-%timestamp`` will be parsed at runtime with as a ``pftag``
-string and appropriately substituted. The
-``log = 'Weather prediction execTime'`` is simply an optional logging
-string that is also written to the log event. Equivalently one could do
+    STARTED                     DURATION  STATUS  NAME
+    2026-10-14T09:14:51-04:00      0.306  ok      demo
+    2026-10-14T09:14:51-04:00      0.002  failed  demo
+    2026-10-14T09:14:52-04:00      0.003  failed  wc -l /nonexistent
 
-.. code:: python
+``pflog demo --file /tmp/spans.jsonl`` times a sleep and reports it, for seeing a span without writing code. ``pflog --man`` is the full manual.
 
-   @tel_logTime(
-           pftelDB = 'https://some.telemetry.server/ap1/v1/weather/MA/event',
-           event   = 'boston-%timestamp'
-           log     = 'Weather prediction execTime'
-   )
-   weather_model(arg1, arg2)
+What pflog is not
+-----------------
 
-Finally, note the special case where the function to be decorated
-contains a python ``Namespace`` with an attribute called ``pftelDB``. In
-this case, the decorator will determine the ``pftelDB`` from the
-decorated function’s arguments. This is particularly useful when the
-main entry point for a python program uses these options and we wish to
-log telemetry:
+It is not a transport. A span is written where the program's output already goes, and whatever collects that output carries it on; the library opens no sockets and posts to no server. It is not a profiler: one span per call, named by the program, not a trace of every function. It is not a logger: ``LogReporter`` writes through Python's logging when a program wants spans in its log, but the library has no levels, no handlers and no configuration of its own.
 
-.. code:: shell
+Install
+-------
 
-   # Imagine we have a python program called 'weather_app' and it has a CLI option:
-   weather_app --pftelDB https://some.telemetry.server/ap1/v1/weather/MA/boston-%timestamp
+.. code-block:: bash
 
-.. code:: python
+    pip install pflog
 
-   # In python, assuming we have parsed the CLI with Argparser into a Namespace variable
-   # called 'options', we could simply do
+Python 3.11 or later. One dependency, ``hostlib``, for the host facts and the record formats shared with it.
 
-   @tel_logTime
-   main(options)
+Layout
+------
 
-And the decorator will determine ``pftelDB`` from the ``options``. For
-simplicity the ``event`` and ``log`` named args have been omitted. Note
-that the first decorator example was assumed to *not* have a
-``Namespace`` in either ``arg1`` nor ``arg2``.
+.. code-block:: text
 
-Arguments
----------
+    pflog/
+    ├── models/    Span, and hostlib's records re-exported
+    ├── span/      timed, span_open, SpanBuilder
+    ├── report/    JsonReporter, FileReporter, LogReporter, TeeReporter, NullReporter
+    └── cli/       the pflog command: read, demo, --man
 
-.. code:: html
-
-           --pftelURL <pftelURL> | --pftelDB <URLDBpath>
-           The URL of the pftel instance. Typically:
-
-                   --pftelURL http://some.location.somewhere:22223
-
-           either this or '--pftelDB' MUST be specified. See below for --pftelDB.
-
-           --log <logMessage>
-           The actual message to log. Use quotes to protect messages that
-           contain spaces:
-
-                   --log "Hello, world!"
-
-           [--logObject <logObjectInPTFEL>] "default"
-           [--logCollection <logCollectionInPFTEL>] `timestamp`
-           [--logEvent <logEventInPFTEL>] "event"
-           [--appName <appName>]
-           [--execTime <execTime>]
-           Logs are stored within the pftel database in
-
-               `{logObjectInPFTEL}`/`{logCollectionInPFTEL}`/`{logEventInPFTEL}`
-
-           if not specified, use defaults as shown. The <appName> and <execTime>
-           are stored within the <logEventInPFTEL>.
-
-           [--pftelDB <DBURLpath>]
-           This is an alternate CLI that specifies a DB POST URL:
-
-               --pftelDB   <URLpath>/<logObject>/<logCollection>/<logEvent>
-
-           for example
-
-               --pftelDB http://localhost:22223/api/v1/weather/massachusetts/boston
-
-           Indirect parsing of each of the object, collection, event strings is
-           available through `pftag` so any embedded pftag SGML is supported. So
-
-               http://localhost:22223/api/vi/%platform/%timestamp_strmsk|**********_/%name
-
-           would be parsed to, for example:
-
-               http://localhost:22223/api/vi/Linux/2023-03-11/posix
-
-           [--asyncio]
-           If specified, use asyncio, else do sync calls.
-
-           [--detailed]
-           If specified, return detailed responses from the server.
-
-           [--test]
-           If specified, run a small internal test on multi-logger calls.
-
-           [--pftelUser <user>] ("chris")
-           The name of the pftel user. Reserved for future use.
-
-           [--inputdir <inputdir>]
-           An optional input directory specifier. Reserverd for future use.
-
-           [--outputdir <outputdir>]
-           An optional output directory specifier. Reserved for future use.
-
-           [--man]
-           If specified, show this help page and quit.
-
-           [--verbosity <level>]
-           Set the verbosity level. The app is currently chatty at level 0 and level 1
-           provides even more information.
-
-           [--debug]
-           If specified, toggle internal debugging. This will break at any breakpoints
-           specified with 'Env.set_trace()'
-
-           [--debugTermsize <253,62>]
-           Debugging is via telnet session. This specifies the <cols>,<rows> size of
-           the terminal.
-
-           [--debugHost <0.0.0.0>]
-           Debugging is via telnet session. This specifies the host to which to connect.
-
-           [--debugPort <7900>]
-           Debugging is via telnet session. This specifies the port on which the telnet
-           session is listening.
-
-Development
------------
-
-Instructions for developers.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To debug, the simplest mechanism is to trigger the internal remote
-telnet session with the ``--debug`` CLI. Then, in the code, simply add
-``Env.set_trace()`` calls where appropriate. These can remain in the
-codebase (i.e. you don’t need to delete/comment them out) since they are
-only *live* when a ``--debug`` flag is passed.
-
-Testing
-~~~~~~~
-
-Run unit tests using ``pytest``. Coming soon!
-
-*-30-*
-
-.. |Version| image:: https://img.shields.io/docker/v/fnndsc/pflog?sort=semver
-   :target: https://hub.docker.com/r/fnndsc/pflog
-.. |MIT License| image:: https://img.shields.io/github/license/fnndsc/pflog
-   :target: https://github.com/FNNDSC/pflog/blob/main/LICENSE
-.. |ci| image:: https://github.com/FNNDSC/pflog/actions/workflows/build.yml/badge.svg
-   :target: https://github.com/FNNDSC/pflog/actions/workflows/build.yml
+``docs/purpose.adoc`` says why the library exists, ``docs/architecture.adoc`` how it is built, ``docs/history.adoc`` where it came from.
